@@ -60,7 +60,7 @@ This repository provides the minimal inference code for generating images from L
 
 An additional Gradio interface is available in [app.py](app.py) for local interactive use.
 
-The GUI supports checkpoint presets, prompt batching, bucket or custom resolutions, dtype and CPU-offload controls, optional local or OpenAI-compatible prompt refinement, gallery examples, and optional saving of generated images to disk.
+The GUI supports checkpoint presets, opt-in prompt batching, bucket or custom resolutions, dtype and CPU-offload controls, optional local or OpenAI-compatible prompt refinement, gallery examples, and optional saving of generated images to disk. Multiline prompts stay single prompts until batching is explicitly enabled.
 
 ## Gallery
 
@@ -419,11 +419,13 @@ python app.py
 The UI exposes the same core controls as the CLI and Python examples, plus:
 
 - checkpoint presets for `microsoft/Lens`, `microsoft/Lens-Turbo`, and `microsoft/Lens-Base`
-- batch prompts from multiple lines or `|` separators
+- an `Enable prompt batching` toggle for splitting prompts from multiple lines or `|` separators
 - bucket presets or custom height / width inputs
 - dtype, MXFP4 dequantization, and CPU offload toggles
 - local GPT-OSS prompt refinement or an OpenAI-compatible API reasoner
 - optional saving of each run to `./outputs`
+
+With batching turned off, multiline text in the prompt box is passed through as a single prompt instead of being split into a batch.
 
 By default the app listens on `127.0.0.1:7860`. Override this with `LENS_GRADIO_HOST` and `LENS_GRADIO_PORT` if needed.
 

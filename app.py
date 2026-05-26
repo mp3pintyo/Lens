@@ -161,14 +161,14 @@ HEADER_HTML = """
   <p class="eyebrow">Lens Studio</p>
   <h1>Gradio cockpit for Microsoft Lens</h1>
   <p class="hero-subtitle">
-    Run the existing Lens pipeline with prompt batching, checkpoint presets, bucket or custom canvas sizes,
+        Run the existing Lens pipeline with opt-in prompt batching, checkpoint presets, bucket or custom canvas sizes,
     MXFP4 and offload toggles, local or OpenAI-compatible prompt refinement, and optional disk export.
   </p>
   <div class="hero-badges">
     <span>Gallery-backed examples</span>
     <span>Checkpoint presets</span>
     <span>Reasoner + API override</span>
-    <span>Batch prompts</span>
+        <span>Opt-in batch prompts</span>
     <span>Research-only workflow</span>
   </div>
 </div>
@@ -188,6 +188,15 @@ def _split_entries(text: str) -> List[str]:
         return []
     normalized = text.replace("|", "\n")
     return [line.strip() for line in normalized.splitlines() if line.strip()]
+
+
+def _parse_prompt_entries(text: str, enable_batching: bool) -> List[str]:
+    if enable_batching:
+        return _split_entries(text)
+    if not text:
+        return []
+    stripped = text.strip()
+    return [stripped] if stripped else []
 
 
 def _parse_optional_int(raw_value: Union[str, int, float, None], field_name: str) -> Optional[int]:
@@ -347,8 +356,12 @@ def _configure_reasoner(pipe: LensPipeline, api_url: Optional[str], api_key: Opt
     return "local GPT-OSS" if pipe.reasoner.text_encoder is not None else "disabled"
 
 
-def _parse_negative_prompt(negative_prompt: str, prompt_count: int) -> Union[str, List[str]]:
-    negatives = _split_entries(negative_prompt)
+def _parse_negative_prompt(
+    negative_prompt: str,
+    prompt_count: int,
+    enable_batching: bool,
+) -> Union[str, List[str]]:
+    negatives = _parse_prompt_entries(negative_prompt, enable_batching)
     if not negatives:
         return ""
     if len(negatives) == 1:
@@ -456,6 +469,7 @@ def _build_examples() -> List[List[object]]:
 def generate_images(
     prompt: str,
     negative_prompt: str,
+    enable_prompt_batching: bool,
     repo_id: str,
     resolution_mode: str,
     base_resolution: int,
@@ -477,15 +491,15 @@ def generate_images(
     save_to_disk: bool,
     output_dir: str,
 ):
-    prompts = _split_entries(prompt)
+    prompts = _parse_prompt_entries(prompt, enable_prompt_batching)
     if not prompts:
-        raise gr.Error("Provide at least one prompt. Separate batch prompts with new lines or '|'.")
+        raise gr.Error("Provide at least one prompt.")
 
     seed_value = _parse_optional_int(seed, "Seed")
     height, width, resolved_base_resolution, resolved_aspect_ratio = _resolve_dimensions(
         resolution_mode, base_resolution, aspect_ratio, custom_height, custom_width
     )
-    negative_prompt_value = _parse_negative_prompt(negative_prompt, len(prompts))
+    negative_prompt_value = _parse_negative_prompt(negative_prompt, len(prompts), enable_prompt_batching)
     clean_api_url, clean_api_key, clean_api_model = _validate_api_fields(api_url, api_key, api_model)
 
     pipe = None
@@ -532,6 +546,7 @@ def generate_images(
             f"- Canvas: `{width} x {height}`",
             f"- Sampling: `{int(steps)}` steps, CFG `{float(cfg):.2f}`, `{int(num_images_per_prompt)}` image(s) per prompt",
             f"- Prompts: `{len(prompts)}`",
+            f"- Prompt batching: `{bool(enable_prompt_batching)}`",
             f"- Dtype: `{dtype_name}`",
             f"- MXFP4 dequantization: `{bool(disable_mxfp4)}`",
             f"- CPU offload: `{bool(offload)}`",
@@ -566,14 +581,19 @@ with gr.Blocks(
     with gr.Row(equal_height=False):
         with gr.Column(scale=7, elem_classes=["panel"]):
             prompt = gr.Textbox(
-                label="Prompt batch",
+                label="Prompt",
                 lines=7,
-                placeholder="One prompt per line, or separate prompts with '|'.",
+                placeholder="Write a single prompt. Enable batching below to split on new lines or '|'.",
+            )
+            enable_prompt_batching = gr.Checkbox(
+                label="Enable prompt batching",
+                info="When enabled, each non-empty line or '|' segment is treated as a separate prompt. When disabled, multiline text stays a single prompt.",
+                value=False,
             )
             negative_prompt = gr.Textbox(
                 label="Negative prompt",
                 lines=3,
-                placeholder="Optional. One shared negative prompt, or one per prompt line.",
+                placeholder="Optional. When batching is enabled, use one shared negative prompt or one per prompt line.",
             )
             with gr.Row():
                 generate_button = gr.Button("Generate", variant="primary", elem_id="generate-btn")
@@ -729,6 +749,7 @@ with gr.Blocks(
         inputs=[
             prompt,
             negative_prompt,
+            enable_prompt_batching,
             repo_id,
             resolution_mode,
             base_resolution,
