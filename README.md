@@ -56,6 +56,12 @@ This repository provides the minimal inference code for generating images from L
 - **Flexible Resolution** &mdash; Mixed-resolution training enables inference across aspect ratios from `1:2` to `2:1` and resolutions up to **1440&times;1440**.
 - **Post-trained Variants** &mdash; RL tuning improves visual quality and artifact suppression; the distilled **Lens-Turbo** supports fast **4-step** generation.
 
+## GUI
+
+An additional Gradio interface is available in [app.py](app.py) for local interactive use.
+
+The GUI supports checkpoint presets, prompt batching, bucket or custom resolutions, dtype and CPU-offload controls, optional local or OpenAI-compatible prompt refinement, gallery examples, and optional saving of generated images to disk.
+
 ## Gallery
 
 <!-- LENS_GALLERY_START -->
@@ -301,8 +307,21 @@ conda activate lens
 
 uv pip install torch==2.11.0+cu126 torchvision==0.26.0+cu126 \
     --index-url https://download.pytorch.org/whl/cu126
-uv pip install -r requirements.txt
+uv pip install -r requirements.txt --prerelease=allow
 ```
+
+On Windows 11, `requirements.txt` also installs `triton-windows` so the GPT-OSS
+MXFP4 path can use Triton instead of falling back to bf16 dequantization. If you
+created the environment before this change, rerun:
+
+```bash
+uv pip install -r requirements.txt --prerelease=allow
+```
+
+If Triton later fails to load with a DLL error on Windows, install or update the
+Visual C++ Redistributable for Visual Studio 2015-2022:
+
+https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 The default GPT-OSS encoder and FLUX.2 VAE are loaded from Hugging Face. Make sure your environment has access to any gated model repositories you use.
 
@@ -388,6 +407,25 @@ python inference.py \
 | `--offload` | Enable diffusers CPU offload (`text_encoder->transformer->vae`) to reduce peak VRAM | &mdash; |
 | `--reasoner` | Refine prompts with the loaded GPT-OSS encoder before generation | &mdash; |
 | `--api_url` / `--api_key` / `--api_model` | Use an OpenAI-compatible API for prompt refinement (takes precedence over `--reasoner`) | &mdash; |
+
+## Gradio UI
+
+For an interactive workflow, install the updated requirements and launch the Gradio app from the repo root:
+
+```bash
+python app.py
+```
+
+The UI exposes the same core controls as the CLI and Python examples, plus:
+
+- checkpoint presets for `microsoft/Lens`, `microsoft/Lens-Turbo`, and `microsoft/Lens-Base`
+- batch prompts from multiple lines or `|` separators
+- bucket presets or custom height / width inputs
+- dtype, MXFP4 dequantization, and CPU offload toggles
+- local GPT-OSS prompt refinement or an OpenAI-compatible API reasoner
+- optional saving of each run to `./outputs`
+
+By default the app listens on `127.0.0.1:7860`. Override this with `LENS_GRADIO_HOST` and `LENS_GRADIO_PORT` if needed.
 
 ## Citation
 
