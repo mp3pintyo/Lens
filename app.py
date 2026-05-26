@@ -664,13 +664,14 @@ with gr.Blocks(
                     )
                     offload = gr.Checkbox(
                         label="Enable CPU offload",
-                        info="Uses diffusers model CPU offload (text_encoder->transformer->vae) to reduce peak VRAM.",
-                        value=True,
+                        info="Uses diffusers model CPU offload (text_encoder->transformer->vae) to reduce peak VRAM. Leave this off to keep the loaded modules on GPU.",
+                        value=False,
                     )
 
             with gr.Accordion("Prompt reasoner", open=False):
                 enable_reasoner = gr.Checkbox(
                     label="Enable local GPT-OSS prompt refinement",
+                    info="Uses the already loaded Lens text encoder. It does not load a separate GPT-OSS model, and it follows the CPU offload setting above.",
                     value=False,
                 )
                 gr.Markdown(
